@@ -15,7 +15,7 @@ export class EmailService {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Verify your email address',
-      template: './verification',
+      template: 'verification',
       context: {
         verificationUrl,
       },
@@ -28,7 +28,7 @@ export class EmailService {
     await this.mailerService.sendMail({
       to: email,
       subject: 'Reset your password',
-      template: './password-reset',
+      template: 'password-reset',
       context: {
         resetUrl,
       },

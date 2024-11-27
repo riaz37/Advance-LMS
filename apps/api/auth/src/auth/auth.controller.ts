@@ -46,6 +46,14 @@ export class AuthController {
     return this.authService.refreshToken(refreshToken);
   }
 
+  @Post('verify-email')
+  @ApiOperation({ summary: 'Verify email address' })
+  @ApiResponse({ status: 200, description: 'Email verified successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired verification token' })
+  async verifyEmail(@Body('token') token: string) {
+    return this.authService.verifyEmail(token);
+  }
+
   @Get('profile')
   @UseGuards(AuthGuard)
   @ApiOperation({ summary: 'Get user profile' })

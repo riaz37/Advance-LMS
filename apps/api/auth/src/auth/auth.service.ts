@@ -10,6 +10,8 @@ import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { User } from '../users/types/user.types';
+import { VerificationService } from '../verification/verification.service';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class AuthService {
@@ -17,6 +19,8 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly verificationService: VerificationService,
+    private readonly emailService: EmailService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User> {
@@ -52,6 +56,10 @@ export class AuthService {
       role: 'student'
     });
 
+    // Generate verification token and send email
+    const verificationToken = await this.verificationService.createEmailVerificationToken(user.id);
+    await this.emailService.sendVerificationEmail(user.email, verificationToken);
+
     const tokens = await this.generateTokens(user);
 
     return {
@@ -76,6 +84,21 @@ export class AuthService {
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
+  }
+
+  async verifyEmail(token: string) {
+    const userId = await this.verificationService.verifyEmailToken(token);
+    if (!userId) {
+      throw new BadRequestException('Invalid or expired verification token');
+    }
+
+    const user = await this.usersService.verifyEmail(userId);
+    const tokens = await this.generateTokens(user);
+
+    return {
+      user,
+      ...tokens,
+    };
   }
 
   private async generateTokens(user: User) {

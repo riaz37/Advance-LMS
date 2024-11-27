@@ -9,12 +9,14 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
 import { EmailModule } from '../email/email.module';
+import { VerificationModule } from '../verification/verification.module';
 
 @Module({
   imports: [
     UsersModule,
     PassportModule,
     EmailModule,
+    VerificationModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
