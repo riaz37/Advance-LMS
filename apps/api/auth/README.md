@@ -7,15 +7,15 @@ The Auth Service is a microservice responsible for authentication and authorizat
 - User registration and authentication
 - Social authentication (Google, Facebook)
 - JWT-based authentication with refresh tokens
-- Hierarchical role-based access control (Admin > Instructor > Student)
-- Password management and security
+- Role-based access control (Admin, Instructor, Student)
+- Password management with bcrypt
 - Email verification
 - Swagger API documentation
 
 ## Tech Stack
 - NestJS - A progressive Node.js framework
-- TypeORM - ORM for database management
-- PostgreSQL - Primary database
+- Drizzle ORM - Modern TypeScript ORM
+- Neon DB - Serverless Postgres
 - Passport.js - Authentication middleware
 - JWT - Token-based authentication
 - Class Validator - Request validation
@@ -23,8 +23,8 @@ The Auth Service is a microservice responsible for authentication and authorizat
 
 ## Prerequisites
 - Node.js >= 18
-- PostgreSQL >= 14
 - pnpm (recommended package manager)
+- Neon DB account
 
 ## Installation
 
@@ -40,42 +40,42 @@ cp .env.example .env
 
 3. Update the `.env` file with your configuration:
 ```env
-# Application
-PORT=3001
+# App Configuration
+PORT=3000
 NODE_ENV=development
 
-# JWT
+# Database Configuration
+DATABASE_URL="your-neon-db-connection-string"
+
+# JWT Configuration
 JWT_SECRET=your-super-secret-key
 JWT_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
-# Database
-DB_HOST=localhost
-DB_PORT=5432
-DB_USERNAME=postgres
-DB_PASSWORD=postgres
-DB_NAME=lms_auth
-DB_SYNC=true
-DB_LOGGING=true
-
-# Social Auth
+# Social Authentication
 GOOGLE_CLIENT_ID=your-google-client-id
 GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_CALLBACK_URL=http://localhost:3001/api/auth/google/callback
+GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
 
-FACEBOOK_APP_ID=your-facebook-app-id
-FACEBOOK_APP_SECRET=your-facebook-app-secret
-FACEBOOK_CALLBACK_URL=http://localhost:3001/api/auth/facebook/callback
-
-# CORS
-CORS_ORIGIN=http://localhost:3000
+# Email Configuration
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+SMTP_USER=your-email@gmail.com
+SMTP_PASSWORD=your-app-specific-password
+SMTP_FROM=your-email@gmail.com
 ```
 
 ## Running the Service
 
 ### Development
 ```bash
-pnpm run start:dev
+# Start in development mode
+pnpm run dev
+
+# Run database migrations
+pnpm run db:generate
+pnpm run db:migrate
 ```
 
 ### Production
@@ -87,115 +87,106 @@ pnpm run start:prod
 ## API Documentation
 Once the service is running, access the Swagger documentation at:
 ```
-http://localhost:3001/api/auth/docs
+http://localhost:3000/api/docs
 ```
 
 ## API Endpoints
 
-### Local Authentication
+### Authentication
 - `POST /api/auth/register` - Register a new user
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "Password123!",
+    "firstName": "John",
+    "lastName": "Doe"
+  }
+  ```
+
 - `POST /api/auth/login` - Login with email and password
+  ```json
+  {
+    "email": "user@example.com",
+    "password": "Password123!"
+  }
+  ```
+
 - `POST /api/auth/refresh-token` - Refresh access token
-- `GET /api/auth/profile` - Get current user profile
+  ```json
+  {
+    "refreshToken": "your-refresh-token"
+  }
+  ```
+
+- `GET /api/auth/profile` - Get current user profile (Protected)
 
 ### Social Authentication
 - `GET /api/auth/google` - Initiate Google OAuth flow
 - `GET /api/auth/google/callback` - Google OAuth callback
-- `GET /api/auth/facebook` - Initiate Facebook OAuth flow
-- `GET /api/auth/facebook/callback` - Facebook OAuth callback
 
-### Role Management
-- `POST /api/auth/change-role` - Change user role (Admin only)
-- `GET /api/auth/users` - Get all users (Admin only)
-- `GET /api/auth/courses` - Get instructor courses (Instructor only)
-- `GET /api/auth/enrolled-courses` - Get enrolled courses (Student only)
+### Response Format
+Successful authentication returns:
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "firstName": "John",
+    "lastName": "Doe",
+    "role": "student",
+    "isEmailVerified": "false",
+    "provider": null,
+    "avatarUrl": null,
+    "createdAt": "timestamp",
+    "updatedAt": "timestamp"
+  },
+  "accessToken": "jwt-access-token",
+  "refreshToken": "jwt-refresh-token"
+}
+```
 
 ## Authentication Flow
 
-### Local Registration
+### Registration
 1. Client sends POST request to `/api/auth/register`
 2. Service validates input and checks for existing email
-3. Creates new user with hashed password (default role: STUDENT)
-4. Returns JWT tokens (access + refresh) and user information
+3. Creates new user with bcrypt hashed password
+4. Returns JWT tokens (access + refresh) and user data
 
-### Social Authentication
-1. Client initiates OAuth flow via Google/Facebook endpoints
-2. User authenticates with the provider
-3. Service creates/updates user with social profile
-4. Returns JWT tokens and user information
+### Login
+1. Client sends credentials to `/api/auth/login`
+2. Service validates credentials against stored hash
+3. Returns JWT tokens and user data
 
 ### Protected Routes
 1. Client includes JWT token in Authorization header
-2. Service validates token and role permissions
-3. Grants or denies access based on user role hierarchy
+2. Service validates token and permissions
+3. Grants or denies access based on user role
 
-## Role-Based Access Control
+## Database Schema
 
-### Role Hierarchy
+### User Table
 ```typescript
-const roleHierarchy = {
-  ADMIN: 3,      // Full access
-  INSTRUCTOR: 2, // Course management
-  STUDENT: 1     // Basic access
+{
+  id: uuid
+  email: string
+  firstName: string
+  lastName: string
+  password: string
+  role: enum('admin', 'instructor', 'student')
+  isEmailVerified: string
+  provider: string | null
+  avatarUrl: string | null
+  createdAt: timestamp
+  updatedAt: timestamp
 }
 ```
 
-### Using Role Protection
-Routes can be protected with role requirements using the `@Role()` decorator:
-```typescript
-@Role(UserRole.ADMIN)
-@Get('admin-endpoint')
-adminOnly() {
-  // Only accessible by admins
-}
-
-@Role(UserRole.INSTRUCTOR)
-@Get('instructor-endpoint')
-instructorAndAbove() {
-  // Accessible by instructors and admins
-}
-```
-
-## Security Features
-- Password hashing with bcrypt
-- JWT access tokens (15m expiry)
-- JWT refresh tokens (7d expiry)
-- Hierarchical role-based access control
-- Social authentication integration
-- Input validation and sanitization
-- CORS configuration
-
-## Error Handling
-The service implements comprehensive exception handling for:
-- Authentication failures
-- Invalid credentials
-- Token expiration
-- Insufficient permissions
-- Input validation
-- Database conflicts
-
-## Development Guidelines
-
-### Code Style
-- Follow NestJS best practices
-- Use TypeScript decorators for metadata
-- Implement proper error handling
-- Add JSDoc comments for methods
-- Use DTOs for request/response validation
-
-### Testing
-- Unit tests for services
-- E2E tests for authentication flows
-- Role-based access tests
-- Token validation tests
-
-## Future Improvements
+## Future Enhancements
 - Implement two-factor authentication (2FA)
-- Add more OAuth providers
+- Add Facebook OAuth integration
 - Enhanced audit logging
-- Session management
 - Rate limiting
-- IP-based security
-
-## Support
-For support, please contact the development team or create an issue in the repository.
+- Session management
+- Password reset flow
+- Email verification flow
