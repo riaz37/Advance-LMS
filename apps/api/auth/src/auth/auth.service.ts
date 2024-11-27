@@ -49,6 +49,7 @@ export class AuthService {
       ...registerDto,
       password: hashedPassword,
       isEmailVerified: 'false',
+      role: 'student'
     });
 
     const tokens = await this.generateTokens(user);

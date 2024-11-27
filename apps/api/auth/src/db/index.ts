@@ -1,12 +1,15 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
-import { Pool } from 'pg';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { neon } from '@neondatabase/serverless';
 import { ConfigService } from '@nestjs/config';
 import * as schema from './schema';
 
 export const createDrizzle = (configService: ConfigService) => {
-  const pool = new Pool({
-    connectionString: configService.get('DATABASE_URL'),
-  });
+  const dbUrl = configService.get<string>('DATABASE_URL');
+  
+  if (!dbUrl) {
+    throw new Error('DATABASE_URL is not defined in environment variables');
+  }
 
-  return drizzle(pool, { schema });
+  const sql = neon(dbUrl);
+  return drizzle(sql, { schema });
 };
