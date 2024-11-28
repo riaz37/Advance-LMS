@@ -19,8 +19,6 @@ import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { Request } from 'express';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { Enable2FADto } from './dto/enable-2fa.dto';
-import { Verify2FADto } from './dto/verify-2fa.dto';
 
 @ApiTags('auth')
 @Controller()
@@ -98,37 +96,5 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Instructor access granted' })
   instructorOnly() {
     return { message: 'Instructor access granted' };
-  }
-
-  @Post('2fa/enable')
-  @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Enable 2FA for user' })
-  @ApiResponse({ status: 200, description: 'Verification code sent' })
-  async enable2FA(@Req() req: Request & { user: any }, @Body() dto: Enable2FADto) {
-    return this.authService.enable2FA(req.user.sub, dto);
-  }
-
-  @Post('2fa/verify-phone')
-  @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Verify phone number and enable 2FA' })
-  @ApiResponse({ status: 200, description: '2FA enabled successfully' })
-  async verifyPhone(@Req() req: Request & { user: any }, @Body('code') code: string) {
-    return this.authService.verifyPhone(req.user.sub, code);
-  }
-
-  @Post('2fa/verify')
-  @ApiOperation({ summary: 'Verify 2FA code during login' })
-  @ApiResponse({ status: 200, description: 'Login successful' })
-  @ApiResponse({ status: 401, description: 'Invalid code or token' })
-  async verify2FA(@Body() dto: Verify2FADto) {
-    return this.authService.verify2FA(dto);
-  }
-
-  @Post('2fa/disable')
-  @UseGuards(AuthGuard)
-  @ApiOperation({ summary: 'Disable 2FA' })
-  @ApiResponse({ status: 200, description: '2FA disabled successfully' })
-  async disable2FA(@Req() req: Request & { user: any }) {
-    return this.authService.disable2FA(req.user.sub);
   }
 }

@@ -1,7 +1,7 @@
 import { Controller, Post, Body, UseGuards, Req, HttpCode } from '@nestjs/common';
 import { TwoFactorService } from '../services/two-factor.service';
-import { JwtAuthGuard } from '../guards/jwt-auth.guard';
 import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
+import { JwtAuthGuard } from '@/auth/guards/jwt-auth.guard';
 
 @ApiTags('2FA')
 @Controller('2fa')
@@ -11,38 +11,33 @@ export class TwoFactorController {
 
   @Post('generate')
   @ApiOperation({ summary: 'Generate 2FA secret and QR code' })
-  @ApiResponse({ status: 200, description: 'Returns the secret and QR code' })
+  @ApiResponse({ status: 200, description: 'Returns secret and QR code' })
   async generate(@Req() req: any) {
-    const { id, email } = req.user;
-    return this.twoFactorService.generateSecret(id, email);
+    const { sub: userId, email } = req.user;
+    return this.twoFactorService.generateSecret(userId, email);
   }
 
   @Post('verify')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Verify 2FA token' })
-  @ApiResponse({ status: 200, description: 'Returns true if token is valid' })
-  async verify(@Req() req: any, @Body() body: { token: string }) {
-    const { id } = req.user;
-    return this.twoFactorService.verifyToken(id, body.token);
-  }
-
-  @Post('enable')
-  @HttpCode(200)
-  @ApiOperation({ summary: 'Enable 2FA' })
+  @ApiOperation({ summary: 'Verify 2FA token and enable 2FA' })
   @ApiResponse({ status: 200, description: '2FA enabled successfully' })
-  async enable(@Req() req: any) {
-    const { id } = req.user;
-    await this.twoFactorService.enable2FA(id);
-    return { message: '2FA enabled successfully' };
+  async verify(@Req() req: any, @Body('token') token: string) {
+    const { sub: userId } = req.user;
+    const isValid = await this.twoFactorService.verifyToken(userId, token);
+    
+    if (isValid) {
+      await this.twoFactorService.enable2FA(userId);
+      return { message: '2FA enabled successfully' };
+    }
+    
+    return { message: 'Invalid token' };
   }
 
   @Post('disable')
-  @HttpCode(200)
   @ApiOperation({ summary: 'Disable 2FA' })
   @ApiResponse({ status: 200, description: '2FA disabled successfully' })
   async disable(@Req() req: any) {
-    const { id } = req.user;
-    await this.twoFactorService.disable2FA(id);
+    const { sub: userId } = req.user;
+    await this.twoFactorService.disable2FA(userId);
     return { message: '2FA disabled successfully' };
   }
 }

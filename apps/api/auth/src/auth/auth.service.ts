@@ -11,12 +11,10 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { Enable2FADto } from './dto/enable-2fa.dto';
-import { Verify2FADto } from './dto/verify-2fa.dto';
 import { User } from '../users/types/user.types';
 import { VerificationService } from '../verification/verification.service';
 import { EmailService } from '../email/email.service';
-import { SmsService } from '../sms/sms.service';
+import { TwoFactorService } from '../services/two-factor.service';
 
 @Injectable()
 export class AuthService {
@@ -26,7 +24,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly verificationService: VerificationService,
     private readonly emailService: EmailService,
-    private readonly smsService: SmsService,
+    private readonly twoFactorService: TwoFactorService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<User> {
@@ -55,29 +53,35 @@ export class AuthService {
     }
 
     if (user.is2FAEnabled) {
-      if (!user.phoneNumber) {
-        throw new UnauthorizedException('Phone number not set for 2FA');
+      if (!loginDto.twoFactorToken) {
+        // Return a temporary token if 2FA token is not provided
+        const tempToken = await this.jwtService.signAsync(
+          {
+            sub: user.id,
+            email: user.email,
+            requires2FA: true,
+          },
+          {
+            secret: this.configService.get('JWT_SECRET'),
+            expiresIn: '5m',
+          },
+        );
+
+        return {
+          requires2FA: true,
+          tempToken,
+        };
       }
 
-      const code = this.smsService.generateVerificationCode();
-      await this.verificationService.createVerificationCode(user.id, code, 'SMS_2FA');
-      await this.smsService.send2FACode(user.phoneNumber, code);
-
-      const tempToken = await this.jwtService.signAsync(
-        {
-          sub: user.id,
-          requires2FA: true,
-        },
-        {
-          secret: this.configService.get('JWT_SECRET'),
-          expiresIn: '5m',
-        },
+      // Verify 2FA token
+      const isValid = await this.twoFactorService.verifyToken(
+        user.id,
+        loginDto.twoFactorToken,
       );
 
-      return {
-        requires2FA: true,
-        tempToken,
-      };
+      if (!isValid) {
+        throw new UnauthorizedException('Invalid 2FA token');
+      }
     }
 
     const tokens = await this.generateTokens(user);
@@ -168,83 +172,6 @@ export class AuthService {
       user,
       ...tokens,
     };
-  }
-
-  async enable2FA(userId: string, dto: Enable2FADto) {
-    // Check if email is verified
-    const user = await this.usersService.findOne(userId);
-    if (!user.emailVerified) {
-      throw new BadRequestException('Please verify your email before enabling 2FA');
-    }
-
-    const code = this.smsService.generateVerificationCode();
-    await this.verificationService.createVerificationCode(userId, code, 'PHONE_VERIFICATION');
-    await this.smsService.send2FACode(dto.phoneNumber, code);
-
-    await this.usersService.update(userId, {
-      phoneNumber: dto.phoneNumber,
-    });
-
-    return { message: 'Verification code sent to your phone' };
-  }
-
-  async verifyPhone(userId: string, code: string) {
-    const isCodeValid = await this.verificationService.verifyCode(
-      userId,
-      code,
-      'PHONE_VERIFICATION',
-    );
-
-    if (!isCodeValid) {
-      throw new UnauthorizedException('Invalid verification code');
-    }
-
-    await this.usersService.update(userId, {
-      phoneVerified: true,
-      is2FAEnabled: true,
-    });
-
-    return { message: '2FA enabled successfully' };
-  }
-
-  async verify2FA(dto: Verify2FADto) {
-    try {
-      const payload = await this.jwtService.verifyAsync(dto.tempToken, {
-        secret: this.configService.get('JWT_SECRET'),
-      });
-
-      if (!payload.requires2FA) {
-        throw new UnauthorizedException('Invalid token');
-      }
-
-      const isCodeValid = await this.verificationService.verifyCode(
-        payload.sub,
-        dto.code,
-        'SMS_2FA',
-      );
-
-      if (!isCodeValid) {
-        throw new UnauthorizedException('Invalid verification code');
-      }
-
-      const user = await this.usersService.findOne(payload.sub);
-      const tokens = await this.generateTokens(user);
-
-      return {
-        user,
-        ...tokens,
-      };
-    } catch (error) {
-      throw new UnauthorizedException('Invalid token or code');
-    }
-  }
-
-  async disable2FA(userId: string) {
-    await this.usersService.update(userId, {
-      is2FAEnabled: false,
-    });
-
-    return { message: '2FA disabled successfully' };
   }
 
   private async generateTokens(user: User) {

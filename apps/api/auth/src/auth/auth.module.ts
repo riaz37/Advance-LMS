@@ -10,9 +10,9 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
 import { EmailModule } from '../email/email.module';
 import { VerificationModule } from '../verification/verification.module';
-import { SmsModule } from '../sms/sms.module';
 import { TwoFactorService } from '../services/two-factor.service';
 import { TwoFactorController } from '../controllers/two-factor.controller';
+import { DbModule } from '../db/db.module';
 
 @Module({
   imports: [
@@ -28,7 +28,7 @@ import { TwoFactorController } from '../controllers/two-factor.controller';
     UsersModule,
     VerificationModule,
     EmailModule,
-    SmsModule,
+    DbModule,
   ],
   controllers: [AuthController, TwoFactorController],
   providers: [AuthService, JwtStrategy, TwoFactorService],
