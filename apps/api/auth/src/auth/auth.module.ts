@@ -10,31 +10,28 @@ import { GoogleStrategy } from './strategies/google.strategy';
 import { FacebookStrategy } from './strategies/facebook.strategy';
 import { EmailModule } from '../email/email.module';
 import { VerificationModule } from '../verification/verification.module';
+import { SmsModule } from '../sms/sms.module';
+import { TwoFactorService } from '../services/two-factor.service';
+import { TwoFactorController } from '../controllers/two-factor.controller';
 
 @Module({
   imports: [
-    UsersModule,
-    PassportModule,
-    EmailModule,
-    VerificationModule,
+    ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => ({
         secret: configService.get('JWT_SECRET'),
-        signOptions: {
-          expiresIn: configService.get('JWT_EXPIRES_IN', '15m'),
-        },
+        signOptions: { expiresIn: '1d' },
       }),
       inject: [ConfigService],
     }),
+    UsersModule,
+    VerificationModule,
+    EmailModule,
+    SmsModule,
   ],
-  controllers: [AuthController],
-  providers: [
-    AuthService,
-    JwtStrategy,
-    GoogleStrategy,
-    FacebookStrategy,
-  ],
+  controllers: [AuthController, TwoFactorController],
+  providers: [AuthService, JwtStrategy, TwoFactorService],
   exports: [AuthService],
 })
 export class AuthModule {}

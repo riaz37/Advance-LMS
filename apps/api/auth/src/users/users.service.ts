@@ -76,15 +76,18 @@ export class UsersService {
     return deletedUser;
   }
 
-  async verifyEmail(id: string) {
-    const user = await this.findOne(id);
-    user.isEmailVerified = 'true';
-    const [updatedUser] = await this.db
+  async verifyEmail(userId: string) {
+    const user = await this.findOne(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.db
       .update(schema.users)
-      .set({ isEmailVerified: 'true' })
-      .where(eq(schema.users.id, id))
-      .returning();
-    return updatedUser;
+      .set({ emailVerified: true })
+      .where(eq(schema.users.id, userId));
+
+    return user;
   }
 
   async updatePassword(id: string, newPassword: string) {

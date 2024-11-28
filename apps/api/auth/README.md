@@ -206,10 +206,10 @@ Successful authentication returns:
 
 ## Future Enhancements
 
-- Implement two-factor authentication (2FA)
+- Implement two-factor authentication (2FA) [DONE]
 - Add Facebook OAuth integration
 - Enhanced audit logging
 - Rate limiting
 - Session management
-- Password reset flow
-- Email verification flow [DONE]
+- Password reset flow [DONE] [Tested]
+- Email verification flow [DONE] [Tested]

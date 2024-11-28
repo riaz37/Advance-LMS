@@ -3,7 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { NodePgDatabase } from 'drizzle-orm/node-postgres';
 import { Inject } from '@nestjs/common';
 import * as schema from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, and, or, gt, lt } from 'drizzle-orm';
 import { randomBytes } from 'crypto';
 import { EmailService } from '../email/email.service';
 
@@ -71,5 +71,77 @@ export class VerificationService {
       .where(eq(schema.verificationTokens.id, verificationToken.id));
 
     return verificationToken.userId;
+  }
+
+  async createVerificationCode(
+    userId: string,
+    code: string,
+    type: 'SMS_2FA' | 'PHONE_VERIFICATION',
+  ) {
+    // Delete any existing unused codes for this user and type
+    await this.db
+      .delete(schema.verificationCodes)
+      .where(
+        and(
+          eq(schema.verificationCodes.userId, userId),
+          eq(schema.verificationCodes.type, type),
+          eq(schema.verificationCodes.used, false),
+        ),
+      );
+
+    // Create new verification code
+    const [verificationCode] = await this.db
+      .insert(schema.verificationCodes)
+      .values({
+        userId,
+        code,
+        type,
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes
+      })
+      .returning();
+
+    return verificationCode;
+  }
+
+  async verifyCode(userId: string, code: string, type: 'SMS_2FA' | 'PHONE_VERIFICATION') {
+    const now = new Date();
+
+    // Find valid verification code
+    const [verificationCode] = await this.db
+      .select()
+      .from(schema.verificationCodes)
+      .where(
+        and(
+          eq(schema.verificationCodes.userId, userId),
+          eq(schema.verificationCodes.code, code),
+          eq(schema.verificationCodes.type, type),
+          eq(schema.verificationCodes.used, false),
+          gt(schema.verificationCodes.expiresAt, now),
+        ),
+      );
+
+    if (!verificationCode) {
+      return false;
+    }
+
+    // Mark code as used
+    await this.db
+      .update(schema.verificationCodes)
+      .set({ used: true })
+      .where(eq(schema.verificationCodes.id, verificationCode.id));
+
+    return true;
+  }
+
+  async cleanupExpiredCodes() {
+    const now = new Date();
+    await this.db
+      .delete(schema.verificationCodes)
+      .where(
+        or(
+          lt(schema.verificationCodes.expiresAt, now),
+          eq(schema.verificationCodes.used, true),
+        ),
+      );
   }
 }

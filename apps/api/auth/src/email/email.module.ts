@@ -9,12 +9,13 @@ import { HandlebarsAdapter } from '@nestjs-modules/mailer/dist/adapters/handleba
     MailerModule.forRootAsync({
       useFactory: async (configService: ConfigService) => ({
         transport: {
-          host: configService.get('SMTP_HOST'),
-          port: configService.get('SMTP_PORT'),
-          secure: configService.get('SMTP_SECURE', false),
+          service: 'gmail',
+          host: 'smtp.gmail.com',
+          port: 465,
+          secure: true,
           auth: {
             user: configService.get('SMTP_USER'),
-            pass: configService.get('SMTP_PASSWORD'),
+            pass: configService.get('SMTP_PASSWORD'), 
           },
         },
         defaults: {

@@ -22,20 +22,30 @@ export class CreateUserDto {
   @MinLength(8)
   password: string;
 
-  @ApiProperty({ example: 'student', required: false })
+  @ApiProperty({ example: 'STUDENT', required: false })
   @IsString()
-  role?: string = 'student';
+  @IsOptional()
+  role?: string;
 
   @ApiProperty({ required: false })
-  @IsString()
-  provider?: string;
-
-  @ApiProperty({ required: false })
-  @IsString()
-  avatarUrl?: string;
+  @IsOptional()
+  emailVerified?: boolean;
 
   @ApiProperty({ required: false })
   @IsString()
   @IsOptional()
-  isEmailVerified?: string;
+  phoneNumber?: string;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  is2FAEnabled?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  phoneVerified?: boolean;
+
+  @ApiProperty({ example: 'google', required: false })
+  @IsString()
+  @IsOptional()
+  provider?: string;
 }
