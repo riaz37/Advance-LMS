@@ -51,3 +51,29 @@ pnpm dev
 - **Package Management**: pnpm
 - **Monorepo Management**: Turborepo
 - **Language**: TypeScript
+
+## Setting Up a New Microservice
+
+To set up a new microservice, you can use the `setup_microservice.sh` script located in the `api` directory. This script will create a basic structure for your microservice using `pnpm`.
+
+### How to Use the Script:
+
+1. **Navigate to the `api` Directory:**
+   ```bash
+   cd /media/riaz37/WebDevelopment/Advance-LMS/apps/api
+   ```
+
+2. **Run the Script with the Microservice Name:**
+   Use the following command format, replacing `your_microservice_name` with the desired name of your microservice:
+   ```bash
+   bash setup_microservice.sh your_microservice_name
+   ```
+
+### Example:
+
+To create a microservice named "users," you would run:
+```bash
+bash setup_microservice.sh users
+```
+
+This will create a new microservice with the specified name and set up the necessary directory structure and files.
